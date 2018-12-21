@@ -1,0 +1,211 @@
+---
+title: "Project"
+output: html_document
+---
+
+```{r}
+library(data.table)
+library(tidyr)
+```
+
+
+
+```{r}
+projects = fread("/Users/kalyani/01ColumbiaQMSS/01Semester1/DataAnalysis/Project/io/Projects.csv")
+projects = as.data.frame(projects)
+```
+
+
+
+```{r}
+names(projects)
+```
+
+
+
+```{r}
+#independent variable: donations$Donation.Amount
+#dependent variables
+#1) donors$Donor.Is.Teacher
+#2) schools$School.Metro.Type
+#3) schools$School.Percentage.Free.Lunch
+#4) teachers$Teacher.Prefix
+#5) resources$Resource.Item.Name #bag of words
+#6) resources$Resource.Quantity
+#7) resources$Resource.Unit.Price
+#8) projects["Project Essay"] #bag of words
+#9) projects["Project Grade Level Category"] - DONE
+#10) projects["Project Title"]
+#11) projects["Project Cost"] - DONE
+#12) projects['Project Subject Category Tree'] - DONE
+#13) projects['Project Resource Category'] - DONE - NEED TO EVALUATE MODELS
+#14) projects['Project Short Description']
+#15) projects['Project Subject Subcategory Tree']
+#16) projects["Project Need Statement"]
+#17) projects["Project Fully Funded Date"] - projects["Project Fully Funded Date"]
+
+```
+
+
+
+#Remove live from Project Current Status
+
+```{r}
+projects['Project Current Status'] = as.factor(unlist(projects['Project Current Status']))
+projects['Project.Current.Status'] = projects['Project Current Status']
+projects = subset(projects, Project.Current.Status != 'Live')
+```
+
+#Predicting if project will be fully funded - logistic regression
+
+```{r}
+projects['Project.Subject'] = projects['Project Subject Category Tree']
+projects = separate(data = projects, col = Project.Subject, into = c("Subject1", "Subject2", "Subject3"), sep = ",")
+projects$Subject1 = as.factor(projects$Subject1)
+projects$Subject2 = as.factor(projects$Subject2)
+
+```
+
+
+```{r}
+glm1 = glm(Project.Current.Status ~ Subject1 + Subject2, data=projects, family=binomial())
+summary(glm1)
+```
+
+
+
+```{r}
+projects['Project.Grade'] = projects["Project Grade Level Category"]
+projects$Project.Grade = as.factor(projects$Project.Grade)
+```
+
+```{r}
+glm2 = glm(Project.Current.Status ~ Project.Grade, data=projects, family=binomial())
+summary(glm2)
+```
+```{r}
+glm3 = glm(Project.Current.Status ~ Project.Grade + Subject1 + Subject2, data=projects, family=binomial())
+summary(glm3)
+
+```
+
+```{r}
+projects['Project.Cost'] = projects["Project Cost"]
+```
+```{r}
+glm4 = glm(Project.Current.Status ~ Project.Cost, data=projects, family=binomial())
+summary(glm4)
+```
+
+```{r}
+glm5 = glm(Project.Current.Status ~ Project.Grade + Subject1 + Subject2 + Project.Cost, data=projects, family=binomial())
+summary(glm5)
+```
+```{r}
+projects['Project Resource Category'] 
+projects['Project.Resource'] = projects["Project Resource Category"]
+projects$Project.Resource = as.factor(projects$Project.Resource)
+```
+
+```{r}
+glm6 = glm(Project.Current.Status ~ Project.Resource, data=projects, family=binomial())
+summary(glm6)
+```
+
+```{r}
+glm7 = glm(Project.Current.Status ~ Project.Grade + Subject1 + Subject2 + Project.Cost + Project.Resource, data=projects, family=binomial())
+summary(glm7)
+```
+
+
+
+```{r}
+glm8 = glm(Project.Current.Status ~ Project.Grade + Project.Cost + Project.Resource, data=projects, family=binomial())
+summary(glm8)
+```
+```{r}
+anova(glm5, glm8, test ="Chisq")
+
+```
+```{r}
+library(survey)
+regTermTest(glm8, "Project.Cost")
+```
+
+```{r}
+library(caret)
+varImp(glm8)
+```
+
+```{r}
+library(caret)
+varImp(glm5)
+```
+```{r}
+library(survey)
+regTermTest(glm7, "Project.Resource")
+```
+
+```{r}
+anova(glm5, glm7)
+```
+
+```{r}
+glm0 = glm(Project.Current.Status ~ 1, data=projects, family=binomial())
+summary(glm0)
+```
+
+```{r}
+anova(glm8)
+```
+
+```{r}
+library(lmtest)
+lrtest(glm5,glm7)
+```
+
+```{r}
+lrtest(glm7,glm5)
+```
+```{r}
+lrtest(glm8)
+anova(glm5, mod2, test="LRT")
+```
+```{r}
+lrtest(glm5)
+```
+
+```{r}
+library(ggplot2)
+
+```
+
+```{r}
+p = ggplot(projects, aes(x=Project.Cost)) + geom_histogram(fill = "red", bins = 100) + theme_classic()
+ggsave("cost.png")
+```
+```{r}
+p = ggplot(projects, aes(x=Project.Resource)) + geom_bar(fill = "blue") +coord_flip() + theme_classic()
+p
+ggsave("resource.png")
+```
+
+```{r}
+p = ggplot(projects, aes(x=Project.Grade)) + geom_bar(fill = "blue") + coord_flip() + theme_classic()
+ggsave("grade.png")
+```
+```{r}
+p = ggplot(projects, aes(x=Subject1)) + geom_bar(fill = "blue") + coord_flip() + theme_classic()
+ggsave("subject1.png")
+
+```
+
+```{r}
+exp(coef(glm5))
+```
+
+```{r}
+exp(coef(glm8))
+summary(projects$Project.Resource)
+```
+
